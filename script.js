@@ -21,7 +21,7 @@ function preloadFrames() {
     for (let i = 1; i <= totalFrames; i++) {
       const img = new Image()
       img.crossOrigin = "anonymous"
-      img.src = `../frames/1 (${i}).png`
+      img.src = `../frames/1 (${i}).webp`
       img.alt = `Frame ${i}`
       img.style.cssText = `
         position: absolute;
