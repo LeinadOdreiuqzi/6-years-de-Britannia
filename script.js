@@ -57,15 +57,39 @@ function preloadFrames() {
   })
 }
 
-function showFrame(frameIndex) {
-  if (frameIndex === currentFrame || !frames[frameIndex]) return
-  if (frames[currentFrame]) {
-    frames[currentFrame].style.opacity = "0"
-  }
+let isAnimating = false;
+let lastRenderedFrame = -1;
 
-  // Mostrar nuevo frame instantáneamente
-  frames[frameIndex].style.opacity = "1"
-  currentFrame = frameIndex
+function showFrame(frameIndex) {
+  // Evitar actualizaciones innecesarias
+  if (frameIndex === lastRenderedFrame || !frames[frameIndex]) return;
+  
+  // Evitar solapamiento de animaciones
+  if (isAnimating) return;
+  isAnimating = true;
+  
+  // Usar requestAnimationFrame para sincronizar con el renderizado del navegador
+  requestAnimationFrame(() => {
+    try {
+      // Ocultar el frame actual si existe
+      if (frames[currentFrame] && currentFrame !== frameIndex) {
+        frames[currentFrame].style.display = 'none';
+      }
+      
+      // Mostrar el nuevo frame
+      const targetFrame = frames[frameIndex];
+      targetFrame.style.display = 'block';
+      targetFrame.style.opacity = '1';
+      
+      // Actualizar el frame actual
+      currentFrame = frameIndex;
+      lastRenderedFrame = frameIndex;
+    } catch (error) {
+      console.error('Error in showFrame:', error);
+    } finally {
+      isAnimating = false;
+    }
+  });
 }
 
 // Función para inicializar el contenido de la segunda timeline
@@ -271,11 +295,31 @@ function setupMainAnimation() {
         const frameSectionProgress = Math.min(progress / 0.7, 1);
 
         if (progress <= 0.7) {
-          gsap.set("#frames-animation", { opacity: 1 });
-          const frameIndex = Math.min(Math.floor(frameSectionProgress * (totalFrames - 1)), totalFrames - 1);
-          showFrame(frameIndex);
-        } else {
-          gsap.to("#frames-animation", { opacity: 0, duration: 0.5, ease: "power2.in" });
+          // Solo actualizar la opacidad si es necesario
+          if (self.direction === 1 && progress > 0.1) {
+            gsap.set("#frames-animation", { opacity: 1, immediateRender: false });
+          }
+          
+          // Calcular el frame actual basado en el progreso
+          const targetFrame = Math.min(Math.floor(frameSectionProgress * (totalFrames - 1)), totalFrames - 1);
+          
+          // Solo actualizar si el frame es diferente al anterior
+          if (targetFrame !== lastRenderedFrame) {
+            showFrame(targetFrame);
+          }
+        } else if (progress > 0.7 && self.direction === 1) {
+          // Solo ocultar cuando se hace scroll hacia abajo
+          gsap.to("#frames-animation", { 
+            opacity: 0, 
+            duration: 0.5, 
+            ease: "power2.in",
+            onComplete: () => {
+              // Asegurarse de que todos los frames estén ocultos
+              frames.forEach(frame => {
+                if (frame) frame.style.display = 'none';
+              });
+            }
+          });
         }
       },
       onLeave: () => {
